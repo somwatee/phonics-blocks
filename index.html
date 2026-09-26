@@ -55,6 +55,8 @@ h1 .cube i{width:11px;height:11px;border-radius:3px;display:block}
 .sounds .lbl{align-self:center;font-size:12px;color:var(--dim);min-width:58px}
 .sounds .lbl b{color:var(--text);font-family:var(--display);font-size:16px}
 #blends .snd{border-color:#5A4A22}
+#blends .snd.w{border-color:var(--leaf)}#blends .snd.w b{color:var(--leaf)}
+.sounds .plus{align-self:center;color:var(--dim);font-size:14px}
 .snd.now{border-color:var(--text);background:#27345A}
 .tips{grid-column:1 / -1;margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13.5px;color:var(--muted)}
 .tips li{padding-left:14px;position:relative}
@@ -103,7 +105,7 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
   <div class="tabs" role="group" aria-label="หมวด" id="tabs"></div>
 
   <div class="stage" id="stage">
-    <div class="steps" aria-hidden="true"><span id="s1">1 ทีละเสียง</span><span id="s2">2 ทั้งคำ</span><span id="s3">3 พูดตาม</span><span id="s4">4 ผล</span></div>
+    <div class="steps" aria-hidden="true"><span id="s1">1 ทีละเสียง</span><span id="s2">2 ผสมเสียง</span><span id="s3">3 พูดตาม</span><span id="s4">4 ผล</span></div>
     <div class="hint3d">ลากเพื่อหมุน · แตะบล็อกเพื่อฟังเสียง</div>
   </div>
 
@@ -122,7 +124,7 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
   <div class="legend" aria-hidden="true"><span><i style="background:var(--sky)"></i>พยัญชนะ</span><span><i style="background:var(--sun)"></i>สระ / ผสมเสียง</span><span><i style="background:var(--mute)"></i>ไม่ออกเสียง</span></div>
 
   <div class="controls">
-    <button class="btn primary" id="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></svg><span id="goLabel">เริ่มฝึก: ทีละเสียง → ทั้งคำ → พูดตาม</span></button>
+    <button class="btn primary" id="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></svg><span id="goLabel">เริ่มฝึก: ทีละเสียง → ผสมเสียง → พูดตาม</span></button>
     <button class="btn" id="bSeg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="5" height="8" rx="1.5"/><rect x="9.5" y="8" width="5" height="8" rx="1.5"/><rect x="16" y="8" width="5" height="8" rx="1.5"/></svg>ทีละเสียง</button>
     <button class="btn" id="bWord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>ทั้งคำ</button>
     <button class="btn" id="mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span id="micLabel">พูดเลย</span></button>
@@ -167,7 +169,12 @@ function segs(item,cat){
 }
 function blendsOf(item,cat){
   const u=UNITS[cat+":"+item.word];if(!u)return [];
-  return u.b.map(([idx,p,txt,th,rule])=>({idx,p,txt,th,rule}));
+  const bl=u.b.map(([idx,p,txt,th,rule])=>({idx,p,txt,th,rule})).sort((a,b)=>a.idx[0]-b.idx[0]);
+  const g=segs(item,cat),cov=new Set(),out=[];
+  const single=i=>{if(!cov.has(i)&&g[i].p!=="-"){out.push({idx:[i],p:g[i].p,txt:g[i].g,th:g[i].th,single:true});}cov.add(i);};
+  bl.forEach(b=>{for(let i=0;i<b.idx[0];i++)single(i);out.push(b);b.idx.forEach(i=>cov.add(i));});
+  for(let i=0;i<g.length;i++)single(i);
+  return out;
 }
 
 const SAME={sun:["son"],bee:["be","b"],him:["hymn"],made:["maid"],tale:["tail"],week:["weak"],feet:["feat"],blue:["blew"],rose:["rows","roes"],nine:["9"],ten:["10"],night:["knight","nite"],deer:["dear"],seed:["cede"],toe:["tow"],mail:["male"],plane:["plain"],rain:["reign","rein"],roll:["role"],time:["thyme"],boy:["buoy"],hoop:["whoop"],on:["an"],box:["bocks"],dad:["dead"],cheese:["cheeses"],pies:["pi's","pis"],grown:["groan"],maze:["maize"],plum:["plumb"],zoo:["zu"],saw:["sa","sah"]};
@@ -210,7 +217,8 @@ async function sayIt(){
   const my=++token,sg=curSegs();step(1);
   for(let i=0;i<sg.length;i++){if(my!==token)return false;activate([i]);hopOne(i);await playPh(sg[i].p);await sleep(sg[i].p==="-"?80:260);}
   const bl=curBlends();if(bl.length){activate([]);await sleep(250);}
-  for(let j=0;j<bl.length;j++){if(my!==token)return false;activate(bl[j].idx,j);bl[j].idx.forEach(hopOne);await playPh(bl[j].p);await sleep(380);}
+  for(let j=0;j<bl.length;j++){if(my!==token)return false;activate(bl[j].idx,j);bl[j].idx.forEach(hopOne);await playPh(bl[j].p);await sleep(300);}
+  if(my!==token)return false;activate(sg.map((_,i)=>i),bl.length);await sleep(120);await speakWord();
   activate([]);return my===token;
 }
 let voice=null;const synth=window.speechSynthesis;
@@ -373,10 +381,10 @@ function renderItem(){
   token++;const c=CATS[catIdx],it=cur(),sg=curSegs();
   $("word").innerHTML=sg.map(s=>`<span class="${s.cls}">${s.g}</span>`).join("");
   const bl=curBlends();
-  $("blends").innerHTML=bl.length?`<span class="lbl">ผสมเสียง</span>`+bl.map((b,j)=>`<button class="snd v" data-j="${j}"><b>${b.txt}</b><small>${b.th}</small></button>`).join("")+`<span class="lbl">→ <b>${it.word}</b></span>`:`<span class="lbl">ผสมเสียง → <b>${it.word}</b></span>`;
+  $("blends").innerHTML=`<span class="lbl">ผสมเสียง</span>`+bl.map((b,j)=>`<button class="snd ${b.single?sg[b.idx[0]].cls:"v"}" data-j="${j}"><b>${b.txt}</b><small>${b.th}</small></button>`).join(`<span class="plus">+</span>`)+`<span class="plus">→</span><button class="snd w" data-j="w"><b>${it.word}</b><small>ทั้งคำ</small></button>`;
   $("sounds").innerHTML=`<span class="lbl">ทีละเสียง</span>`+sg.map((s,i)=>`<button class="snd ${s.cls}" data-i="${i}" ${s.p==="-"?'tabindex="-1"':""}><b>${s.g}</b><small>${s.th}</small></button>`).join("");
   const syl=bl.filter(b=>!b.txt.startsWith("-")&&c.id==="letters");
-  $("thai").innerHTML=c.id==="letters"?`ตัว <b>${it.key.toUpperCase()}${it.key}</b> ออกเสียง “${UMETA[it.key==="x"?"x":it.key][0]}”`+(syl.length>1?` · แบ่งพยางค์: <b>${syl.map(b=>b.txt).join("-")}</b>`:""):`แยกเสียง → ผสมเป็นกลุ่มเสียงตามตาราง → อ่านทั้งคำ`;
+  $("thai").innerHTML=c.id==="letters"?`ตัว <b>${it.key.toUpperCase()}${it.key}</b> ออกเสียง “${UMETA[it.key==="x"?"x":it.key][0]}”`+(syl.length>1?` · แบ่งพยางค์: <b>${syl.map(b=>b.txt).join("-")}</b>`:""):`แยกทีละเสียง → ผสมเสียงให้ครบทั้งคำ → อ่านทั้งคำ`;
   $("tips").innerHTML=tipsFor(it.word).map(t=>`<li>${t}</li>`).join("");
   const b=best[c.id+":"+it.word];
   setResult(b!=null?b:null,b!=null?"คะแนนดีที่สุดของคำนี้":"กด “เริ่มฝึก”",b!=null?"ลองอีกครั้งเพื่อทำคะแนนให้สูงขึ้น":"แอปจะออกเสียงทีละหน่วยเสียง ผสมเป็นพยางค์หรือกลุ่มเสียง แล้วอ่านทั้งคำ จากนั้นเปิดไมค์ให้คุณพูดตามทั้งคำ","");
@@ -411,13 +419,13 @@ async function doListen(){
 }
 function lock(on){busy=on;$("go").disabled=on;}
 $("go").onclick=async()=>{if(busy)return;ac();lock(true);
-  $("goLabel").textContent="ฟังทีละเสียง…";if(await sayIt()){await sleep(350);$("goLabel").textContent="ฟังทั้งคำ…";await speakWord();await sleep(300);$("goLabel").textContent="พูดทั้งคำตามได้เลย";await doListen();}
-  $("goLabel").textContent="เริ่มฝึก: ทีละเสียง → ทั้งคำ → พูดตาม";lock(false);};
+  $("goLabel").textContent="ฟังทีละเสียง…";if(await sayIt()){await sleep(300);$("goLabel").textContent="พูดทั้งคำตามได้เลย";await doListen();}
+  $("goLabel").textContent="เริ่มฝึก: ทีละเสียง → ผสมเสียง → พูดตาม";lock(false);};
 $("bSeg").onclick=async()=>{if(busy)return;ac();lock(true);await sayIt();step(0);lock(false);};
 $("bWord").onclick=async()=>{if(busy)return;lock(true);await speakWord();step(0);lock(false);};
 $("mic").onclick=async()=>{if(listening&&rec){rec.stop();return;}if(busy)return;lock(true);await doListen();lock(false);};
 $("sounds").onclick=e=>{const b=e.target.closest(".snd");if(b&&!busy)tapSeg(+b.dataset.i);};
-$("blends").onclick=async e=>{const b=e.target.closest(".snd");if(!b||busy)return;const bl=curBlends()[+b.dataset.j];if(!bl)return;ac();token++;activate(bl.idx,+b.dataset.j);bl.idx.forEach(hopOne);await playPh(bl.p);activate([]);};
+$("blends").onclick=async e=>{const b=e.target.closest(".snd");if(!b||busy)return;if(b.dataset.j==="w"){ac();token++;activate(curSegs().map((_,i)=>i),curBlends().length);await speakWord();activate([]);step(0);return;}const bl=curBlends()[+b.dataset.j];if(!bl)return;ac();token++;activate(bl.idx,+b.dataset.j);bl.idx.forEach(hopOne);await playPh(bl.p);activate([]);};
 $("rate").oninput=()=>$("rateOut").textContent=(+$("rate").value).toFixed(1);
 function go(d){if(busy)return;const n=CATS[catIdx].list.length;idx=(idx+d+n)%n;renderItem();}
 $("prev").onclick=()=>go(-1);$("next").onclick=()=>go(1);
