@@ -27,7 +27,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 h1{font-family:var(--display);font-weight:600;font-size:24px;margin:0;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
 h1 .cube{display:inline-grid;grid-template-columns:repeat(2,11px);gap:2px}
 h1 .cube i{width:11px;height:11px;border-radius:3px;display:block}
-.stats{display:flex;gap:8px;font-size:13px;color:var(--muted)}
+.stats{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .stats span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums}
 .stats b{color:var(--text);font-weight:500}
 .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -90,6 +90,26 @@ button:focus-visible,.tab:focus-visible,.chip:focus-visible,.snd:focus-visible{o
 .chip .dot{display:block;height:3px;border-radius:2px;margin-top:4px;background:var(--line)}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(11,16,32,.72);text-align:center;padding:16px;z-index:2}
+.ov[hidden]{display:none}
+.ov .big{font-family:var(--display);font-size:88px;font-weight:600;line-height:1;color:var(--sun)}
+.ov .say{font-family:var(--display);font-size:22px;font-weight:500}
+.ov .say b{color:var(--sun);font-size:30px}
+.ov .sec{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ov .heardlive{font-size:15px;color:var(--leaf);min-height:1.5em}
+.ov .micdot{width:64px;height:64px;border-radius:50%;background:var(--rose);display:grid;place-items:center;animation:pulse 1.1s ease-in-out infinite}
+.ov .micdot svg{width:30px;height:30px;color:#fff}
+.ov .bar{width:min(240px,70%);height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.ov .bar i{display:block;height:100%;background:var(--rose);transition:width .2s linear}
+.ov .ovbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.ov .ovbtns button,.acts button{font-family:var(--display);font-size:14px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.ov .ovbtns button.pri,.acts button.pri{background:var(--sun);border-color:var(--sun);color:#1A1405}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,92,122,.5)}50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(255,92,122,0)}}
+.acts{grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap}
+.acts button{font-size:13.5px;padding:7px 12px}
+.acts button:disabled{opacity:.5}
+.resetall{font-size:12px;color:var(--dim);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer}
+.resetall.arm{color:var(--rose);border-color:var(--rose)}
 footer{font-size:12.5px;color:var(--dim);line-height:1.6}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -99,13 +119,14 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
 <div class="wrap">
   <header>
     <h1><span class="cube" aria-hidden="true"><i style="background:var(--sky)"></i><i style="background:var(--sun)"></i><i style="background:var(--leaf)"></i><i style="background:var(--rose)"></i></span>บล็อกโฟนิกส์</h1>
-    <div class="stats" aria-live="polite"><span>ฝึกแล้ว <b id="stTries">0</b></span><span>เฉลี่ย <b id="stAvg">–</b></span><span>ติดกัน <b id="stStreak">0</b></span></div>
+    <div class="stats" aria-live="polite"><span>ฝึกแล้ว <b id="stTries">0</b></span><span>เฉลี่ย <b id="stAvg">–</b></span><span>ติดกัน <b id="stStreak">0</b></span><button class="resetall" id="resetAll">รีเซ็ตทั้งหมด</button></div>
   </header>
 
   <div class="tabs" role="group" aria-label="หมวด" id="tabs"></div>
 
   <div class="stage" id="stage">
     <div class="steps" aria-hidden="true"><span id="s1">1 ทีละเสียง</span><span id="s2">2 ผสมเสียง</span><span id="s3">3 พูดตาม</span><span id="s4">4 ผล</span></div>
+    <div class="ov" id="ov" hidden aria-live="assertive"></div>
     <div class="hint3d">ลากเพื่อหมุน · แตะบล็อกเพื่อฟังเสียง</div>
   </div>
 
@@ -141,6 +162,12 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
       <p class="verdict" id="verdict"></p>
       <p class="heard" id="heard"></p>
       <p class="msg" id="msg"></p>
+    </div>
+    <div class="acts" id="acts">
+      <button class="pri" id="aAgain">พูดอีกครั้ง</button>
+      <button id="aListen">ฟังตัวอย่าง</button>
+      <button id="aNext">คำถัดไป →</button>
+      <button id="aReset">รีเซ็ตผลคำนี้</button>
     </div>
   </div>
 
@@ -214,7 +241,7 @@ async function playPh(p){if(p==="-")return new Promise(r=>setTimeout(r,380));con
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let token=0;
 async function sayIt(){
-  const my=++token,sg=curSegs();step(1);
+  const my=++token,sg=curSegs();step(1);showStage();
   for(let i=0;i<sg.length;i++){if(my!==token)return false;activate([i]);hopOne(i);await playPh(sg[i].p);await sleep(sg[i].p==="-"?80:260);}
   const bl=curBlends();if(bl.length){activate([]);await sleep(250);}
   for(let j=0;j<bl.length;j++){if(my!==token)return false;activate(bl[j].idx,j);bl[j].idx.forEach(hopOne);await playPh(bl[j].p);await sleep(300);}
@@ -244,15 +271,37 @@ function speakTTS(){return new Promise(res=>{
   u.onend=fin;u.onerror=fin;setTimeout(fin,5000);synth.speak(u);hopAll();
 });}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let rec=null,listening=false;
-function listen(){return new Promise((res,rej)=>{
+let rec=null,listening=false,stopReq=false;
+const ov=$("ov");
+function ovShow(html){ov.innerHTML=html;ov.hidden=false;}
+function ovHide(){ov.hidden=true;ov.innerHTML="";}
+function beep(f,ms){const a=ac();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.frequency.value=f;o.type="sine";g.gain.setValueAtTime(.0001,a.currentTime);g.gain.exponentialRampToValueAtTime(.25,a.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+ms/1000);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+ms/1000+.05);}
+function showStage(){const r=stageEl.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)stageEl.scrollIntoView({block:"start",behavior:reduce?"auto":"smooth"});}
+async function countdown(){
+  const my=token;step(3);showStage();
+  for(const n of [3,2,1]){if(my!==token)return false;ovShow(`<div class="say">เตรียมพูดคำว่า <b>${cur().word}</b></div><div class="big">${n}</div><div class="sec">รอให้ขึ้นว่า “พูดเลย” ก่อน</div>`);beep(660,120);await sleep(850);}
+  if(my!==token)return false;beep(990,220);await sleep(240);return true;
+}
+const MIC_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+function listen(ms=10000){return new Promise((res,rej)=>{
   if(!SR){rej("unsupported");return;}
-  rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=6;rec.continuous=false;
-  let got=null;
-  rec.onresult=e=>{got=[];const r=e.results[0];for(let i=0;i<r.length;i++)got.push({t:r[i].transcript,c:r[i].confidence});};
-  rec.onerror=e=>{listening=false;setMic(false);rej(e.error||"error");};
-  rec.onend=()=>{listening=false;setMic(false);got?res(got):rej("no-speech");};
-  try{rec.start();listening=true;setMic(true);}catch(e){rej("busy");}
+  const end=Date.now()+ms;let got=null,interim="",fatal=null,done=false;stopReq=false;
+  const w=cur().word;
+  ovShow(`<div class="micdot">${MIC_SVG}</div><div class="say">พูดเลย: <b>${w}</b></div><div class="bar"><i id="ovBar" style="width:100%"></i></div><div class="sec" id="ovSec">เหลือ ${Math.round(ms/1000)} วินาที</div><div class="heardlive" id="ovHeard"></div><div class="ovbtns"><button id="ovStop">หยุดฟัง</button></div>`);
+  $("ovStop").onclick=()=>{stopReq=true;try{rec&&rec.stop();}catch(e){}};
+  const draw=()=>{const r=Math.max(0,end-Date.now());const bar=$("ovBar"),sec=$("ovSec"),h=$("ovHeard");if(bar)bar.style.width=(r/ms*100)+"%";if(sec)sec.textContent="เหลือ "+Math.ceil(r/1000)+" วินาที";if(h)h.textContent=interim?"ได้ยิน: "+interim:"";};
+  const finish=()=>{if(done)return;done=true;clearInterval(tick);listening=false;setMic(false);
+    if(fatal)rej(fatal);else if(got)res(got);else if(interim)res([{t:interim,c:.5}]);else rej(stopReq?"stopped":"timeout");};
+  const startOne=()=>{
+    rec=new SR();rec.lang="en-US";rec.interimResults=true;rec.maxAlternatives=6;rec.continuous=false;
+    rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal){got=[];for(let j=0;j<r.length;j++)got.push({t:r[j].transcript,c:r[j].confidence});}else interim=r[0].transcript;}draw();if(got)try{rec.stop();}catch(e){}};
+    rec.onerror=e=>{if(["not-allowed","service-not-allowed","audio-capture","network"].includes(e.error))fatal=e.error;};
+    rec.onend=()=>{if(got||fatal||stopReq||Date.now()>=end)finish();else setTimeout(()=>{if(!done){try{startOne();}catch(e){finish();}}},120);};
+    try{rec.start();}catch(e){fatal="busy";finish();}
+  };
+  listening=true;setMic(true);
+  const tick=setInterval(()=>{if(Date.now()>=end){try{rec&&rec.stop();}catch(e){}setTimeout(finish,700);}else draw();},250);
+  startOne();
 });}
 function setMic(on){$("mic").classList.toggle("rec",on);$("micLabel").textContent=on?"กำลังฟัง…":"พูดเลย";if(on)step(3);}
 
@@ -378,7 +427,7 @@ function renderStrip(){
   const a=$("strip").querySelector('[aria-current="true"]');if(a)a.scrollIntoView({block:"nearest",inline:"center",behavior:reduce?"auto":"smooth"});
 }
 function renderItem(){
-  token++;const c=CATS[catIdx],it=cur(),sg=curSegs();
+  token++;ovHide();const c=CATS[catIdx],it=cur(),sg=curSegs();
   $("word").innerHTML=sg.map(s=>`<span class="${s.cls}">${s.g}</span>`).join("");
   const bl=curBlends();
   $("blends").innerHTML=`<span class="lbl">ผสมเสียง</span>`+bl.map((b,j)=>`<button class="snd ${b.single?sg[b.idx[0]].cls:"v"}" data-j="${j}"><b>${b.txt}</b><small>${b.th}</small></button>`).join(`<span class="plus">+</span>`)+`<span class="plus">→</span><button class="snd w" data-j="w"><b>${it.word}</b><small>ทั้งคำ</small></button>`;
@@ -387,7 +436,7 @@ function renderItem(){
   $("thai").innerHTML=c.id==="letters"?`ตัว <b>${it.key.toUpperCase()}${it.key}</b> ออกเสียง “${UMETA[it.key==="x"?"x":it.key][0]}”`+(syl.length>1?` · แบ่งพยางค์: <b>${syl.map(b=>b.txt).join("-")}</b>`:""):`แยกทีละเสียง → ผสมเสียงให้ครบทั้งคำ → อ่านทั้งคำ`;
   $("tips").innerHTML=tipsFor(it.word).map(t=>`<li>${t}</li>`).join("");
   const b=best[c.id+":"+it.word];
-  setResult(b!=null?b:null,b!=null?"คะแนนดีที่สุดของคำนี้":"กด “เริ่มฝึก”",b!=null?"ลองอีกครั้งเพื่อทำคะแนนให้สูงขึ้น":"แอปจะออกเสียงทีละหน่วยเสียง ผสมเป็นพยางค์หรือกลุ่มเสียง แล้วอ่านทั้งคำ จากนั้นเปิดไมค์ให้คุณพูดตามทั้งคำ","");
+  setResult(b!=null?b:null,b!=null?"คะแนนดีที่สุดของคำนี้":"กด “เริ่มฝึก”",b!=null?"ลองอีกครั้งเพื่อทำคะแนนให้สูงขึ้น":"แอปจะอ่านทีละเสียง ผสมเสียง แล้วอ่านทั้งคำ จากนั้นนับ 3-2-1 ให้คุณพูดตามภายใน 10 วินาที","");
   build3D();renderStrip();step(0);activate([]);
 }
 function setResult(s,verdict,heard,msg){
@@ -399,11 +448,13 @@ async function tapSeg(i){const sg=curSegs()[i];if(!sg||sg.p==="-")return;ac();to
 let busy=false;
 async function doListen(){
   const it=cur(),c=CATS[catIdx];
+  if(!SR){warn("เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง ให้เปิดด้วย <b>Chrome</b> (Android/คอมพิวเตอร์) หรือ Safari บน iPhone");return;}
+  if(!(await countdown())){ovHide();return;}
   try{
-    const alts=await listen();step(4);
+    const alts=await listen(10000);step(4);ovHide();
     const r=scoreIt(alts,it.word);
     const v=r.score>=85?"ชัดเจน ฟังเข้าใจได้":r.score>=60?"ใกล้แล้ว ลองอีกนิด":"ยังไม่ชัด ลองใหม่";
-    const m=r.score>=85?"ไปคำถัดไป หรือเพิ่มความเร็วเสียงคำให้ใกล้การพูดจริง":r.score>=60?"เครื่องฟังออกแต่ยังไม่มั่นใจ ลองฟังทีละเสียงอีกรอบ แล้วเน้นเสียงท้ายคำ":"กด “ทีละเสียง” แล้วพูดตามทีละบล็อกก่อน จากนั้นค่อยพูดทั้งคำ";
+    const m=r.score>=85?"กด “คำถัดไป” หรือพูดอีกครั้งเพื่อทำคะแนนให้สูงขึ้น":r.score>=60?"เครื่องฟังออกแต่ยังไม่มั่นใจ ลองฟังตัวอย่างอีกรอบ แล้วเน้นเสียงท้ายคำ":"กด “ฟังตัวอย่าง” แล้วพูดตามทีละบล็อกก่อน จากนั้นค่อยพูดทั้งคำ";
     setResult(r.score,v,`ระบบได้ยินว่า: <b>${r.heard||"(ไม่ชัด)"}</b> · เป้าหมาย: <b>${it.word}</b>`,m);
     celebrate(r.score);
     const k=c.id+":"+it.word;best[k]=Math.max(best[k]||0,r.score);store.set("phx-best",best);
@@ -411,19 +462,28 @@ async function doListen(){
     renderStats();renderStrip();warn("");
   }catch(e){
     step(0);
-    if(e==="unsupported")warn("เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง ให้เปิดด้วย <b>Chrome</b> (Android/คอมพิวเตอร์) หรือ Safari บน iPhone");
-    else if(e==="not-allowed"||e==="service-not-allowed"||e==="audio-capture")warn("ใช้ไมโครโฟนไม่ได้ในหน้านี้ ให้เปิดเว็บด้วย Chrome แล้วกด <b>อนุญาต</b> ไมโครโฟน (ถ้าเคยกดปฏิเสธ ให้แตะไอคอนหน้า URL → สิทธิ์ → ไมโครโฟน → อนุญาต)");
-    else if(e==="no-speech"||e==="no-match")setResult(null,"ไม่ได้ยินเสียง","เริ่มพูดภายใน 2-3 วินาทีหลังไมค์เปิด พูดดัง ๆ ใกล้ไมค์","");
-    else if(e!=="aborted")setResult(null,"ฟังไม่สำเร็จ","ลองกดอีกครั้ง ("+e+")","");
+    if(e==="timeout"){ovShow(`<div class="say">ไม่ได้ยินเสียงใน 10 วินาที</div><div class="sec">กรุณาออกเสียงคำว่า <b style="color:var(--sun)">${it.word}</b> อีกครั้ง</div><div class="ovbtns"><button class="pri" id="ovRetry">ออกเสียงอีกครั้ง</button><button id="ovClose">ปิด</button></div>`);
+      $("ovRetry").onclick=()=>{ovHide();$("aAgain").click();};$("ovClose").onclick=ovHide;
+      setResult(null,"ไม่ได้ยินเสียง","กรุณาออกเสียงอีกครั้ง พูดดัง ๆ ใกล้ไมค์ หลังขึ้นคำว่า “พูดเลย”","");}
+    else if(e==="stopped"){ovHide();setResult(null,"หยุดฟังแล้ว","กด “พูดอีกครั้ง” เมื่อพร้อม","");}
+    else if(["not-allowed","service-not-allowed","audio-capture"].includes(e)){ovHide();warn("ใช้ไมโครโฟนไม่ได้ในหน้านี้ ให้เปิดเว็บด้วย Chrome แล้วกด <b>อนุญาต</b> ไมโครโฟน (ถ้าเคยกดปฏิเสธ ให้แตะไอคอนหน้า URL → สิทธิ์ → ไมโครโฟน → อนุญาต)");}
+    else if(e==="network"){ovHide();warn("ระบบรู้จำเสียงของ Chrome ต้องใช้อินเทอร์เน็ต ตรวจการเชื่อมต่อแล้วลองใหม่");}
+    else{ovHide();setResult(null,"ฟังไม่สำเร็จ","ลองกดอีกครั้ง ("+e+")","");}
   }
 }
-function lock(on){busy=on;$("go").disabled=on;}
+function lock(on){busy=on;["go","bSeg","bWord","aAgain","aListen","aNext","aReset"].forEach(id=>$(id).disabled=on);$("mic").disabled=false;}
 $("go").onclick=async()=>{if(busy)return;ac();lock(true);
-  $("goLabel").textContent="ฟังทีละเสียง…";if(await sayIt()){await sleep(300);$("goLabel").textContent="พูดทั้งคำตามได้เลย";await doListen();}
+  $("goLabel").textContent="ฟังทีละเสียง…";if(await sayIt()){await sleep(300);$("goLabel").textContent="เตรียมพูด…";await doListen();}
   $("goLabel").textContent="เริ่มฝึก: ทีละเสียง → ผสมเสียง → พูดตาม";lock(false);};
 $("bSeg").onclick=async()=>{if(busy)return;ac();lock(true);await sayIt();step(0);lock(false);};
 $("bWord").onclick=async()=>{if(busy)return;lock(true);await speakWord();step(0);lock(false);};
-$("mic").onclick=async()=>{if(listening&&rec){rec.stop();return;}if(busy)return;lock(true);await doListen();lock(false);};
+$("mic").onclick=async()=>{if(listening){stopReq=true;try{rec&&rec.stop();}catch(e){}return;}if(busy)return;ac();lock(true);await doListen();lock(false);};
+$("aAgain").onclick=()=>$("mic").click();
+$("aListen").onclick=async()=>{if(busy)return;ac();lock(true);ovHide();await sayIt();step(0);lock(false);};
+$("aNext").onclick=()=>{ovHide();go(1);};
+$("aReset").onclick=()=>{if(busy)return;const k=CATS[catIdx].id+":"+cur().word;delete best[k];store.set("phx-best",best);renderItem();};
+let armT=null;$("resetAll").onclick=e=>{const b=e.currentTarget;if(busy)return;if(!b.classList.contains("arm")){b.classList.add("arm");b.textContent="แตะอีกครั้งเพื่อยืนยัน";armT=setTimeout(()=>{b.classList.remove("arm");b.textContent="รีเซ็ตทั้งหมด";},3000);return;}
+  clearTimeout(armT);best={};stats={tries:0,sum:0,streak:0};store.set("phx-best",best);store.set("phx-stats",stats);b.classList.remove("arm");b.textContent="รีเซ็ตทั้งหมด";renderStats();renderItem();};
 $("sounds").onclick=e=>{const b=e.target.closest(".snd");if(b&&!busy)tapSeg(+b.dataset.i);};
 $("blends").onclick=async e=>{const b=e.target.closest(".snd");if(!b||busy)return;if(b.dataset.j==="w"){ac();token++;activate(curSegs().map((_,i)=>i),curBlends().length);await speakWord();activate([]);step(0);return;}const bl=curBlends()[+b.dataset.j];if(!bl)return;ac();token++;activate(bl.idx,+b.dataset.j);bl.idx.forEach(hopOne);await playPh(bl.p);activate([]);};
 $("rate").oninput=()=>$("rateOut").textContent=(+$("rate").value).toFixed(1);
