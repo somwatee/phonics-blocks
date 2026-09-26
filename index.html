@@ -110,6 +110,13 @@ button:focus-visible,.tab:focus-visible,.chip:focus-visible,.snd:focus-visible{o
 .acts button:disabled{opacity:.5}
 .resetall{font-size:12px;color:var(--dim);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer}
 .resetall.arm{color:var(--rose);border-color:var(--rose)}
+.diag{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;font-size:13px;color:var(--muted)}
+.diag summary{cursor:pointer;font-family:var(--display);color:var(--text)}
+.diagrow{display:flex;align-items:center;gap:10px;margin-top:10px}
+.diagrow button{font-family:var(--display);font-size:13px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;flex:none}
+.lvl{flex:1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}.lvl i{display:block;height:100%;width:0;background:var(--leaf)}
+.diaghelp{margin:6px 0}
+.diaglog{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:pre-wrap;background:#0D1325;border-radius:8px;padding:8px;max-height:220px;overflow:auto;color:#B9C4E0}
 footer{font-size:12.5px;color:var(--dim);line-height:1.6}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -170,6 +177,12 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
       <button id="aReset">รีเซ็ตผลคำนี้</button>
     </div>
   </div>
+
+  <details class="diag" id="diag"><summary>ตรวจไมค์ (ถ้าพูดแล้วไม่ติด แตะที่นี่)</summary>
+    <div class="diagrow"><button id="micTest">ทดสอบไมค์ 5 วินาที</button><div class="lvl"><i id="lvl"></i></div><span id="lvlTxt">–</span></div>
+    <p class="diaghelp">กดทดสอบแล้วพูดอะไรก็ได้ ถ้าแถบสีเขียวไม่ขยับ แปลว่ามือถือไม่ได้ส่งเสียงจากไมค์ให้ Chrome ตรวจสิทธิ์ไมโครโฟนของ Chrome</p>
+    <div class="diaglog" id="diagLog">ยังไม่มีบันทึก กดพูดสักครั้งแล้วกลับมาดูที่นี่</div>
+  </details>
 
   <div class="strip-h"><span id="stripTitle"></span><span id="stripDone"></span></div>
   <div class="strip" id="strip"></div>
@@ -283,20 +296,25 @@ async function countdown(){
   if(my!==token)return false;beep(990,220);await sleep(240);return true;
 }
 const MIC_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-function listen(ms=10000){return new Promise((res,rej)=>{
+let LOG=[],logT0=0;
+function logEv(t){const s=((performance.now()-logT0)/1000).toFixed(1);LOG.push(s+"s  "+t);const el=$("diagLog");if(el){el.textContent=LOG.join("\n");el.scrollTop=el.scrollHeight;}}
+function listen(ms=10000){return new Promise(async(res,rej)=>{
   if(!SR){rej("unsupported");return;}
+  LOG=[];logT0=performance.now();logEv("เริ่มฟังคำ: "+cur().word+" | "+navigator.userAgent.replace(/^.*?\(|\).*$/g,"").slice(0,60));
+  if(actx&&actx.state==="running"){try{await actx.suspend();logEv("ปิดระบบเสียงของแอปชั่วคราว");}catch(e){}}
   const end=Date.now()+ms;let got=null,interim="",fatal=null,done=false;stopReq=false;
   const w=cur().word;
   ovShow(`<div class="micdot">${MIC_SVG}</div><div class="say">พูดเลย: <b>${w}</b></div><div class="bar"><i id="ovBar" style="width:100%"></i></div><div class="sec" id="ovSec">เหลือ ${Math.round(ms/1000)} วินาที</div><div class="heardlive" id="ovHeard"></div><div class="ovbtns"><button id="ovStop">หยุดฟัง</button></div>`);
   $("ovStop").onclick=()=>{stopReq=true;try{rec&&rec.stop();}catch(e){}};
   const draw=()=>{const r=Math.max(0,end-Date.now());const bar=$("ovBar"),sec=$("ovSec"),h=$("ovHeard");if(bar)bar.style.width=(r/ms*100)+"%";if(sec)sec.textContent="เหลือ "+Math.ceil(r/1000)+" วินาที";if(h)h.textContent=interim?"ได้ยิน: "+interim:"";};
-  const finish=()=>{if(done)return;done=true;clearInterval(tick);listening=false;setMic(false);
+  const finish=()=>{if(done)return;done=true;clearInterval(tick);listening=false;setMic(false);logEv(got?"สรุป: ได้ผล":interim?"สรุป: ใช้ผลระหว่างพูด":fatal?"สรุป: ผิดพลาด "+fatal:"สรุป: ไม่ได้ยินเสียง");if(actx&&actx.state==="suspended")actx.resume().catch(()=>{});
     if(fatal)rej(fatal);else if(got)res(got);else if(interim)res([{t:interim,c:.5}]);else rej(stopReq?"stopped":"timeout");};
   const startOne=()=>{
-    rec=new SR();rec.lang="en-US";rec.interimResults=true;rec.maxAlternatives=6;rec.continuous=false;
-    rec.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal){got=[];for(let j=0;j<r.length;j++)got.push({t:r[j].transcript,c:r[j].confidence});}else interim=r[0].transcript;}draw();if(got)try{rec.stop();}catch(e){}};
-    rec.onerror=e=>{if(["not-allowed","service-not-allowed","audio-capture","network"].includes(e.error))fatal=e.error;};
-    rec.onend=()=>{if(got||fatal||stopReq||Date.now()>=end)finish();else setTimeout(()=>{if(!done){try{startOne();}catch(e){finish();}}},120);};
+    rec=new SR();rec.lang="en-US";rec.interimResults=true;rec.maxAlternatives=6;rec.continuous=true;
+    ["start","audiostart","soundstart","speechstart","speechend","soundend","audioend","nomatch"].forEach(n=>{try{rec["on"+n]=()=>logEv(n);}catch(e){}});
+    rec.onresult=e=>{logEv("result: "+[...e.results].map(r=>(r.isFinal?"[final] ":"[ระหว่างพูด] ")+r[0].transcript).join(" | "));for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal){got=[];for(let j=0;j<r.length;j++)got.push({t:r[j].transcript,c:r[j].confidence});}else interim=r[0].transcript;}draw();if(got)try{rec.stop();}catch(e){}};
+    rec.onerror=e=>{logEv("error: "+e.error);if(["not-allowed","service-not-allowed","audio-capture","network"].includes(e.error))fatal=e.error;};
+    rec.onend=()=>{logEv("end");if(got||fatal||stopReq||Date.now()>=end)finish();else setTimeout(()=>{if(!done){try{startOne();}catch(e){finish();}}},120);};
     try{rec.start();}catch(e){fatal="busy";finish();}
   };
   listening=true;setMic(true);
@@ -478,6 +496,12 @@ $("go").onclick=async()=>{if(busy)return;ac();lock(true);
 $("bSeg").onclick=async()=>{if(busy)return;ac();lock(true);await sayIt();step(0);lock(false);};
 $("bWord").onclick=async()=>{if(busy)return;lock(true);await speakWord();step(0);lock(false);};
 $("mic").onclick=async()=>{if(listening){stopReq=true;try{rec&&rec.stop();}catch(e){}return;}if(busy)return;ac();lock(true);await doListen();lock(false);};
+$("micTest").onclick=async()=>{if(busy||listening)return;const b=$("micTest");b.disabled=true;let st=null;
+  try{st=await navigator.mediaDevices.getUserMedia({audio:true});const C=window.AudioContext||window.webkitAudioContext;const a=new C();const src=a.createMediaStreamSource(st),an=a.createAnalyser();an.fftSize=1024;src.connect(an);const buf=new Float32Array(an.fftSize);let peak=0;const t0=Date.now();
+    await new Promise(r=>{const f=()=>{an.getFloatTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v));peak=Math.max(peak,m);$("lvl").style.width=Math.min(100,m*250)+"%";$("lvlTxt").textContent=Math.ceil((5000-(Date.now()-t0))/1000)+" วิ";if(Date.now()-t0<5000)requestAnimationFrame(f);else r();};f();});
+    st.getTracks().forEach(t=>t.stop());a.close();$("lvl").style.width="0";$("lvlTxt").textContent=peak>0.05?"ไมค์ทำงาน ✓":"ไม่มีเสียงเข้าไมค์ ✗";
+  }catch(e){$("lvlTxt").textContent="เปิดไมค์ไม่ได้: "+(e.name||e);if(st)st.getTracks().forEach(t=>t.stop());}
+  b.disabled=false;};
 $("aAgain").onclick=()=>$("mic").click();
 $("aListen").onclick=async()=>{if(busy)return;ac();lock(true);ovHide();await sayIt();step(0);lock(false);};
 $("aNext").onclick=()=>{ovHide();go(1);};
