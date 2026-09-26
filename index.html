@@ -125,6 +125,7 @@ footer{font-size:12.5px;color:var(--dim);line-height:1.6}
   </div>
 
   <div class="rate"><label for="rate">ความเร็วเสียงคำ</label><input type="range" id="rate" min="0.5" max="1.1" step="0.1" value="0.8"><output id="rateOut">0.8</output></div>
+  <div id="src" style="font-size:12px;color:var(--dim);margin-top:-8px">เสียงทั้งคำ: ใช้เสียงคนจริงเมื่อมีไฟล์ ถ้าไม่มีจะใช้เสียงสังเคราะห์</div>
 
   <div class="warn" id="warn" hidden></div>
 
@@ -211,8 +212,29 @@ async function sayIt(){
 let voice=null;const synth=window.speechSynthesis;
 function pickVoice(){if(!synth)return;const v=synth.getVoices();voice=v.find(x=>/en[-_]US/i.test(x.lang)&&/Google|Samantha|Aria|Jenny/i.test(x.name))||v.find(x=>/en[-_]US/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null;}
 if(synth){pickVoice();synth.onvoiceschanged=pickVoice;}
-function speakWord(){return new Promise(res=>{
-  step(2);squeeze(true);
+const humanUrl={};
+function tryAudio(url){return new Promise(res=>{
+  const a=new Audio();let done=false;const fin=v=>{if(!done){done=true;clearTimeout(to);res(v);}};
+  const to=setTimeout(()=>{a.pause();fin(false);},4500);
+  a.preload="auto";a.onerror=()=>fin(false);a.onended=()=>fin(true);
+  a.onplaying=()=>{clearTimeout(to);setTimeout(()=>fin(true),(a.duration||2)*1000/a.playbackRate+800);};
+  a.src=url;a.playbackRate=Math.max(.5,+$("rate").value/.8>1.2?1.2:+$("rate").value/.8);try{a.preservesPitch=true;}catch(e){}
+  a.play().then(()=>{}).catch(()=>fin(false));
+});}
+async function speakHuman(w){
+  const base="https://api.dictionaryapi.dev/media/pronunciations/en/";
+  const list=humanUrl[w]?[humanUrl[w]]:[w+"-us.mp3",w+"-uk.mp3",w+"-au.mp3",w+"-ca.mp3"].map(x=>base+x);
+  for(const u of list){if(humanUrl[w]===null)break;if(await tryAudio(u)){humanUrl[w]=u;return true;}}
+  humanUrl[w]=null;return false;
+}
+function setSrc(h){$("src").textContent=h?"เสียงทั้งคำ: เสียงคนจริง (จาก Wiktionary)":"เสียงทั้งคำ: เสียงสังเคราะห์ของเครื่อง (ไม่พบไฟล์เสียงคนจริงของคำนี้)";}
+async function speakWord(){
+  step(2);squeeze(true);hopAll();
+  const w=cur().word;
+  if(humanUrl[w]!==null&&await speakHuman(w)){setSrc(true);setTimeout(()=>squeeze(false),300);return;}
+  setSrc(false);return speakTTS();
+}
+function speakTTS(){return new Promise(res=>{
   if(!synth){warn("เบราว์เซอร์นี้เล่นเสียงคำไม่ได้ ลองเปิดด้วย Chrome");res();return;}
   synth.cancel();const w=cur().word,u=new SpeechSynthesisUtterance(w);u.lang="en-US";if(voice)u.voice=voice;u.rate=+$("rate").value;
   let done=false;const fin=()=>{if(!done){done=true;setTimeout(()=>squeeze(false),500);res();}};
