@@ -1,0 +1,17 @@
+{
+  "name": "โฟนิกส์ต่อคำ (Phonics TorKum)",
+  "short_name": "โฟนิกส์ต่อคำ",
+  "description": "ฝึกออกเสียงภาษาอังกฤษแบบโฟนิกส์ ฟังทีละเสียง ต่อเสียงเป็นคำ แล้วพูดตาม",
+  "lang": "th",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1020",
+  "theme_color": "#0B1020",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
