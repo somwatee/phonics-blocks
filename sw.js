@@ -1,4 +1,4 @@
-const C="torkum-v3";
+const C="torkum-v4";
 const CORE=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-maskable-512.png"];
 const ROOT=new URL("./",self.registration.scope).pathname;
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()));});
